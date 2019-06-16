@@ -1,0 +1,114 @@
+---
+title: "AQ Research"
+author: "Marc Rovner"
+date: "September 3, 2017"
+output: word_document
+---
+<style>
+div.blue pre.r {background-color:lightblue;}
+</style>
+<div class = "blue">
+
+###Import Dataset
+```{r, eval = TRUE}
+
+#Get full dataset
+full = read.csv("Psych_v4.csv")
+
+#Find AQ  data
+first = which( colnames(full)=="aq01" )
+last = which( colnames(full)=="aq27" )
+
+#Create AQ dataset
+AQ = full[first:last]
+
+#Add categorical variables to AQ dataset
+AQ = cbind(AQ,full$Gender,full$raceasianyn, full$birthcounasianyn, full$schoolasianyn,full$collegeasianyn,full$Age,full$howasian)
+head(AQ)
+head(full[,"PSQ"])
+```
+
+```{r,warning = FALSE, message = FALSE}
+
+#attach and import relevant libraries
+attach(full)
+library(psych)
+
+```
+
+
+###Categorical Variables
+```{r, eval = TRUE}
+
+#Fix gender data to only be M/F
+#Other genders were present, but so were unnecessary entries such as decimals
+#M/F is most effiecnt way to present this categorical variable
+Gender = na.omit(full$Gender)
+Gender = Gender[Gender %in% c(0,1)]
+
+#Label categorical variables
+Gender = factor(Gender,labels = c('Male','Female'))
+raceasianyn = factor(raceasianyn,labels=c('Not Asian','Asian'))
+birthcounasianyn = factor(birthcounasianyn,labels=c('Not Asian','Asian'))
+schoolasianyn = factor(schoolasianyn,labels=c('Not Asian','Asian'))
+collegeasianyn = factor(collegeasianyn,labels=c('Not Asian','Asian'))
+
+#Print categorical variables
+table(Gender)
+table(birthcounasianyn)
+table(schoolasianyn)
+table(collegeasianyn)
+table(howasian)
+summary(Age)
+summary(howasian)
+
+```
+
+
+###Subscale Calculations
+```{r, eval = TRUE}
+
+#Reverse relevant AQ scores
+for(i in 1:27) {
+  if (i == 7|i == 8|i == 16|i == 20|i == 21|i == 26) {
+    AQ[i] = 10-AQ[i]
+  }
+}
+
+#Fix aq17's data
+#Missing entries and dates instead of numbers, which messed up subscale calculations
+AQ[,17] = as.numeric(as.character(AQ[,17]))
+
+#Calculate subscales
+blame = ((AQ[10]+AQ[11]+AQ[23])/3-1)/8
+anger = ((AQ[1]+AQ[4]+AQ[12])/3-1)/8
+pity = ((AQ[9]+AQ[22]+AQ[27])/3-1)/8
+help = ((AQ[8]+AQ[20]+AQ[21])/3-1)/8
+danger = ((AQ[2]+AQ[13]+AQ[18])/3-1)/8
+fear = ((AQ[3]+AQ[19]+AQ[24])/3-1)/8
+avoidance = ((AQ[7]+AQ[16]+AQ[26])/3-1)/8
+segregation = ((AQ[6]+AQ[15]+AQ[17])/3-1)/8
+coercion = ((AQ[5]+AQ[14]+AQ[25])/3-1)/8
+
+```
+
+
+###Subscale Summaries
+```{r, eval = TRUE}
+aqsubscales = cbind(blame,anger,pity,help,danger,fear,avoidance,segregation,coercion)
+summary(aqsubscales)
+```
+
+
+###Alpha Levels
+```{r,eval = TRUE}
+alpha(aqsubscales, check.keys = TRUE)
+```
+
+
+###Eric's Scores
+```{r,eval = TRUE}
+eric = subset(aqsubscales, Age=="48")
+eric
+```
+</div>

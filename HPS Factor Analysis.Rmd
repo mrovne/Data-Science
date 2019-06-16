@@ -1,0 +1,124 @@
+---
+title: "HPS Factor Analysis"
+author: "Marc Rovner"
+date: "October 3, 2017"
+output: word_document
+---
+<style>
+div.blue pre.r {background-color:lightblue;}
+</style>
+<div class = "blue">
+###Import Packages
+```{r,warning = FALSE, message = FALSE}
+
+library(psych)
+library(nFactors)
+library(foreign)
+library(psy)
+
+```
+
+
+###Import Dataset
+```{r,eval = TRUE}
+
+hps = read.csv("fullhps.csv")
+attach(hps)
+
+#Reverse Relevant Scores
+for(i in 1:48) {
+  if (i == 1|i == 2|i == 6|i == 14|i == 16|i == 17|i == 21|i == 24|i == 25|i == 27|i == 31|i == 47|i == 48) {
+    hps[i+8] = as.numeric(!hps[i+8])
+  }
+}
+
+hpsQ = na.omit(hps[9:56])
+```
+
+
+###Principal Component Analysis
+```{r, eval = TRUE}
+
+#Principal Component Analysis
+hpsfactor = princomp(hpsQ, scores = TRUE, cor = TRUE, loadings = "promax")
+summary(hpsfactor)
+
+#Scree Plot
+screeplot(hpsfactor, type = "line", main = "Scree Plot")
+
+```
+
+
+###Promax Principal Component Analysis
+```{r, eval = TRUE}
+
+#Promax Principal Component Analysis
+hpsprinc = principal(hpsQ, rotate = "promax")
+hpsprinc
+
+#Scree Plot
+plot(hpsprinc$values, xlab = "Dimension", ylab = "Eigenvalue", main = "Principal Component Promax Scree Plot", pch = 16, type = "o")
+
+```
+
+
+###Factor Analysis
+```{r, eval = TRUE}
+
+#Exploratory Factor Analysis, no rotation
+hpsfa1 = factanal(hpsQ, factors = 6, rotation =  "none")
+hpsfa1
+
+```
+
+
+###Promax Factor Analysis
+```{r, eval = TRUE}
+
+#Promax Factor Analysis
+hpsfa2 = factanal(hpsQ, factors = 6, rotation =  "promax")
+hpsfa2
+
+#Promax Factor Analysis Scree Plot
+scree.plot(hpsfa2$correlation)
+
+```
+
+
+###Parallel Analysis
+```{r bluecars, eval = TRUE}
+
+#Get Eigenvalues
+hpsev <- eigen(cor(hpsQ))
+hpsev$values
+
+#Run Parallel Analaysis
+hpspar <- parallel(subject=nrow(hpsQ),var=ncol(hpsQ),
+  rep=100,cent=.05)
+
+#Scree Plot
+hpsnS <- nScree(x=hpsev$values, aparallel=hpspar$eigen$qevpea)
+#jpeg("Parallel_Scree_Plot.jpg")
+plotnScree(hpsnS, main = "Factor Analysis Scree Plot with Parallel Analysis")
+#dev.off()
+
+```
+
+
+###MAP Analysis
+```{r, eval = TRUE}
+
+hpsmap1 = vss(hpsQ, n = 14, rotate = "none")
+hpsmap1
+
+```
+
+
+###Varimax MAP Analysis
+```{r, eval = TRUE}
+
+hpsmap2 = vss(hpsQ, n = 14, rotate = "varimax")
+hpsmap2
+
+```
+</div>

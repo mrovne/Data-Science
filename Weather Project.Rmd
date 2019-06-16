@@ -1,0 +1,61 @@
+---
+title: "Weather Project"
+author: "Marc Rovner"
+date: "November 17, 2018"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+minT=read.csv("weathermin.csv",na.strings = c("","Startdate"))
+maxT=read.csv("weathermax.csv",na.strings=c("","Startdate"))
+precip=read.csv("weatherprecip.csv", na.strings=c("","Startdate"))
+Mprecip=read.csv("weathermonthprecip.csv", na.strings=c("","Startdate"))
+```
+
+```{r}
+#Change Startdate to Date variable
+minT=na.omit(minT)
+minT$Startdate=as.Date(minT$Startdate, format="%d-%b-%y")
+maxT=na.omit(maxT)
+maxT$Startdate=as.Date(maxT$Startdate, format="%d-%b-%y")
+
+#Merge min, max Temp
+minmaxT=merge(minT,maxT, by=c("Station","Startdate","Name","City","State","X"))
+
+#Change Startdate on precip and Merge with minmaxT
+precip=na.omit(precip)
+precip$Startdate=as.Date(precip$Startdate, format="%d-%b-%y")
+weather=merge(minmaxT,precip, by=c("Station","Startdate","Name","City","State","X"))
+
+#Select Pertinent Data
+weather$State=as.character(weather$State)
+weather= weather%>%
+  select(Station,Startdate,City,State,contains("Value")) %>%
+  filter(weather$State=="VA"|weather$State=="NC"|weather$State=="DE"|weather$State=="MD"|weather$State=="WV"|weather$State=="KY"|weather$State=="TN"|weather$State=="SC"|weather$State=="GA"|weather$State=="FL"|weather$State=="AL"|weather$State=="MS")
+
+#Convert Values to numeric type
+weather$Minimum.Temperature.Value..F.=as.integer(as.character(weather$Minimum.Temperature.Value..F.))
+weather$Maximum.Temperature.Value..F.=as.integer(as.character(weather$Maximum.Temperature.Value..F.))
+weather$Total.Precipitation.Value..in=as.double(as.character(weather$Total.Precipitation.Value..in.))
+weather$Diurnal=weather$Maximum.Temperature.Value..F.-weather$Minimum.Temperature.Value..F.
+
+weather= weather%>%
+  select(Station,Startdate,City,State,contains("Value")) %>%
+  filter(weather$State=="VA"|weather$State=="NC"|weather$State=="DE"|weather$State=="MD"|weather$State=="WV"|weather$State=="KY"|weather$State=="TN"|weather$State=="SC"|weather$State=="GA"|weather$State=="FL"|weather$State=="AL"|weather$State=="MS")
+```
+
+```{r}
+#Select Monthly Precip Pertinent Data
+Mprecip$State=as.character(Mprecip$State)
+Mprecip= Mprecip%>%
+  select(Station,Startdate,Enddate,City,State,contains("Value")) %>%
+  filter(Mprecip$State=="VA"|Mprecip$State=="NC"|Mprecip$State=="DE"|Mprecip$State=="MD"|Mprecip$State=="WV"|Mprecip$State=="KY"|Mprecip$State=="TN"|Mprecip$State=="SC"|Mprecip$State=="GA"|Mprecip$State=="FL"|Mprecip$State=="AL"|Mprecip$State=="MS")
+
+#Convert Precip to numeric
+Mprecip$Total.Precipitation.Value..in=as.double(as.character(Mprecip$Total.Precipitation.Value..in.))
+
+Mprecip.summ=filter(weather, weather$City=="Winchester"|weather$City=="La Belle")
+```
+
+
