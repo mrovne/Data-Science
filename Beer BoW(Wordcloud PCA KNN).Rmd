@@ -1,0 +1,323 @@
+---
+title: "beer"
+author: "Vikas Vannappagari"
+date: "March 28, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, eval=F}
+#data = readLines('ratingscomm.txt')
+data = read.csv('ratingscomm.txt')
+data2= read.csv('abv.txt')
+colnames(data2)[colnames(data2)=="X2489"] = "BeerID"
+colnames(data2)[colnames(data2)=="X10"] = "abv"
+
+data3 = merge(data, data2)
+```
+
+```{r}
+library(qdapDictionaries)
+library(text2vec)
+library(data.table)
+library(magrittr)
+library(tm)
+
+library(tidytext)
+library(janitor)
+library(Matrix)
+library(factoextra)
+library(dplyr)
+library(caret)
+library(class)
+library(glmnet)
+
+```
+
+```{r, eval=F}
+comments=as.character(data3$Comments)
+comments=na.omit(comments)
+comments=removeWords(comments, stopwords('en'))
+comments=removeWords(comments, 'comments')
+comments=tolower(comments)
+comments=removeNumbers(comments)
+comments=removePunctuation(comments)
+#comments_source = DataframeSource(comments_df)
+#comm_corpus = VCorpus(comments_df)
+```
+
+```{r, eval=F}
+comments_df=data.frame(data3$BeerID, comments)
+
+prep_fun = tolower
+tok_fun = word_tokenizer
+
+it_train = itoken(comments, 
+             preprocessor = prep_fun, 
+             tokenizer = tok_fun, 
+             ids = comments_df$data3.BeerID, 
+             progressbar = FALSE)
+vocab = create_vocabulary(it_train)
+
+train_tokens = comments %>% 
+  prep_fun %>% 
+  tok_fun
+it_train = itoken(train_tokens, 
+                  ids = comments_df$data3.BeerID,
+                  # turn off progressbar because it won't look nice in rmd
+                  progressbar = FALSE)
+
+vocab = create_vocabulary(it_train)
+vocab = vocab[-c(which(vocab$term=='comments')),]
+#vocab
+```
+
+```{r,eval=F}
+comments_df=data.frame(data3$BeerID, comments)
+
+x=1:dim(vocab)[1]
+
+for (i in x) {
+  name=vocab$term[i]
+  t=grepl(vocab$term[i], comments_df$comments)
+  comments_df[c(name)]=t
+  
+  
+}
+
+#grepl('tan', comments_df$comments)
+#which(as.logical(comments_df$carbonation))
+#head(comments_df[1:10,1:10])
+#comments_df is a dataframe with the ID of the review and a binary feature vector noting the appearance of each word in the review. i used all unique words after getting rid of the useless words
+
+comments_df[1:20,5340:5350]
+comments_df[1:100,1:10]
+write.csv(comments_df,file = "beerBoW.csv")
+
+
+```
+
+```{r, echo=F}
+comments_df=read.csv("beerBoW.csv")
+comments_df$data3.BeerID=as.numeric(as.character(comments_df$data3.BeerID))
+comments_df=na.omit(comments_df)
+
+```
+
+Wordcloud from: http://www.sthda.com/english/wiki/print.php?id=159
+```{r Wordcloud,echo=F}
+rquery.wordcloud <- function(x, type=c("text", "url", "file"), 
+                          lang="english", excludeWords=NULL, 
+                          textStemming=FALSE,  colorPalette="Dark2",
+                          min.freq=3, max.words=200)
+{ 
+  library("tm")
+  library("SnowballC")
+  library("wordcloud")
+  library("RColorBrewer") 
+  
+  if(type[1]=="file") text <- readLines(x)
+  else if(type[1]=="url") text <- html_to_text(x)
+  else if(type[1]=="text") text <- x
+  
+  # Load the text as a corpus
+  docs <- Corpus(VectorSource(text))
+  # Convert the text to lower case
+  docs <- tm_map(docs, content_transformer(tolower))
+  # Remove numbers
+  docs <- tm_map(docs, removeNumbers)
+  # Remove stopwords for the language 
+  docs <- tm_map(docs, removeWords, stopwords(lang))
+  # Remove punctuations
+  docs <- tm_map(docs, removePunctuation)
+  # Eliminate extra white spaces
+  docs <- tm_map(docs, stripWhitespace)
+  # Remove your own stopwords
+  if(!is.null(excludeWords)) 
+    docs <- tm_map(docs, removeWords, excludeWords) 
+  # Text stemming
+  if(textStemming) docs <- tm_map(docs, stemDocument)
+  # Create term-document matrix
+  tdm <- TermDocumentMatrix(docs)
+  m <- as.matrix(tdm)
+  v <- sort(rowSums(m),decreasing=TRUE)
+  d <- data.frame(word = names(v),freq=v)
+  # check the color palette name 
+  if(!colorPalette %in% rownames(brewer.pal.info)) colors = colorPalette
+  else colors = brewer.pal(8, colorPalette) 
+  # Plot the word cloud
+  set.seed(1234)
+  wordcloud(d$word,d$freq, min.freq=min.freq, max.words=max.words,
+            random.order=FALSE, rot.per=0.35, 
+            use.r.layout=FALSE, colors=colors)
+  
+  invisible(list(tdm=tdm, freqTable = d))
+}
+#++++++++++++++++++++++
+# Helper function
+#++++++++++++++++++++++
+# Download and parse webpage
+html_to_text<-function(url){
+  library(RCurl)
+  library(XML)
+  # download html
+  html.doc <- getURL(url)  
+  #convert to plain text
+  doc = htmlParse(html.doc, asText=TRUE)
+ # "//text()" returns all text outside of HTML tags.
+ # We also don't want text such as style and script codes
+  text <- xpathSApply(doc, "//text()[not(ancestor::script)][not(ancestor::style)][not(ancestor::noscript)][not(ancestor::form)]", xmlValue)
+  # Format text vector into one character string
+  return(paste(text, collapse = " "))
+}
+
+#Read the Beer data
+beer=read.delim("https://raw.githubusercontent.com/larsga/py-snippets/master/machine-learning/ratebeer/ratings.txt",sep = "|", header=T,dec=".")
+beer$Comments=as.character(beer$Comments)
+
+beer_source=VectorSource(beer$Comments)
+beer_corpus=VCorpus(beer_source)
+
+clean_corpus <- function(corpus){
+  corpus <- tm_map(corpus, stripWhitespace)
+  corpus <- tm_map(corpus, removePunctuation)
+  corpus <- tm_map(corpus, content_transformer(tolower))
+  corpus <- tm_map(corpus, removeWords, stopwords("en"))
+    return(corpus)
+}
+clean_corp=clean_corpus(beer_corpus)
+beer_text=paste(beer$Comments)
+
+#print Wordcloud
+rquery.wordcloud(beer_text, type="text",lang="english", min.freq=1,max.words=100)
+```
+
+```{r Clean BoW Data,echo=F}
+#remove words less than 2 letters
+comments_filter=comments_df[,nchar(colnames(comments_df))>2]
+comments_filter=dplyr::select(comments_filter,-comments)
+#remove words with 1 occurance
+comments_filter=rbind(comments_filter, c(0,colSums(comments_filter[,-1])))
+comments_words=comments_filter[,(which(comments_filter[nrow(comments_filter),2:ncol(comments_filter)]>50))+1]
+comments_words=comments_words[1:(nrow(comments_words)-1),]
+#tail(comments_filter)
+comments_filter=comments_filter[1:nrow(comments_filter)-1,]
+comments_words=as(as(comments_words,"matrix"),"sparseMatrix")
+comments_sparse=cbind(comments_filter$data3.BeerID,comments_words)
+
+
+#tail(comments_filter,15)
+  
+comments_filter=rename(comments_filter,BeerID=data3.BeerID)
+# beer.bow=merge(data,comments_filter)
+# write.csv(beer.bow, file = "Beer Reviews BoW.csv")
+```
+
+
+
+```{r PCA,echo=F}
+#run PCA on BoW data
+beer.pca=prcomp(comments_sparse,scale.=T)
+
+#look at PC's
+pc.load=beer.pca$rotation[,1:2]
+pc.load=abs(pc.load)
+pc.load1=sort(pc.load[,1],decreasing=T)
+pc.load2=sort(pc.load[,2],decreasing=T)
+#head(pc.load1)
+#head(pc.load2)
+vars=apply(beer.pca$x, 2, var)  
+props=vars / sum(vars)
+plot(cumsum(props),type="line")
+
+#Filter words down based on variance explained by each word on each PC
+
+#Calulate R^2 of variables on PC's
+var_coord_func=function(loadings, comp.sdev){
+  loadings*comp.sdev
+}
+loadings=beer.pca$rotation
+sdev=beer.pca$sdev
+var.coord=t(apply(loadings, 1, var_coord_func, sdev)) 
+var.cos2=var.coord^2
+comp.cos2=apply(var.cos2, 2, sum)
+contrib=function(var.cos2, comp.cos2){var.cos2*100/comp.cos2}
+var.contrib=t(apply(var.cos2,1, contrib, comp.cos2))
+#head(var.contrib[, 1:4])
+
+#Get a list of words based on the R^2 above
+use.word=""
+for(i in 1:11){
+  pc.load=var.contrib[,i]
+  pc.load=pc.load[which(pc.load>2)]
+  if (length(setdiff(names(pc.load),names(use.word)))!=0){
+    use.word=c(use.word,setdiff(names(pc.load),names(use.word)))
+  }
+}
+
+comments_filter44=comments_filter[which(colnames(comments_filter)%in%c("BeerID",use.word))]
+# beer.bow44=merge(data,comments_filter44)
+# write.csv(beer.bow44,file="Beer Reviews 44BoW.csv")
+# head(beer.bow44)
+```
+
+```{r KNN}
+data2 = readr::read_csv("beerBoW100.csv")
+data2=data2[1:5146,]
+data = data2[,c(4,6:dim(data2)[2])]
+
+#reduce style
+data$Style = replace(data$Style, which(grepl("Pale Ale", data$Style)), "PA")
+data$Style = replace(data$Style, which(grepl("IPA", data$Style)), "IPA")
+data$Style = replace(data$Style, which(grepl("Ale", data$Style)), "Ale")
+data$Style = replace(data$Style, which(grepl("ale", data$Style)), "Ale")
+data$Style = replace(data$Style, which(grepl("Stout", data$Style)), "Stout")
+data$Style = replace(data$Style, which(grepl("Lager", data$Style)), "Lager")
+data$Style = replace(data$Style, which(grepl("Lambic", data$Style)), "Lambic")
+data$Style = replace(data$Style, which(grepl("bock", data$Style)), "Bock")
+data$Style = replace(data$Style, which(grepl("Bock", data$Style)), "Bock")
+data$Style = replace(data$Style, which(grepl("Pilsener", data$Style)), "Pilsener")
+data$Style = replace(data$Style, which(grepl("Porter", data$Style)), "Porter")
+data$Style = replace(data$Style, which(grepl("Abbey", data$Style)), "Abbey")
+data$Style = replace(data$Style, which(grepl("Quadrupel", data$Style)), "Abbey")
+data$Style = replace(data$Style, which(grepl(c("Sak"), data$Style)), "Other")
+data$Style = replace(data$Style, which(grepl("Perry", data$Style)), "Other")
+data$Style = replace(data$Style, which(grepl("California", data$Style)), "Other")
+data$Style = replace(data$Style, which(grepl("Berliner", data$Style)), "Other")
+data$Style = replace(data$Style, which(grepl("German", data$Style)), "Other")
+data$Style = replace(data$Style, which(grepl("Altbier", data$Style)), "Other")
+data$Style = replace(data$Style, which(grepl("Style", data$Style)), "Other")
+data$Style = replace(data$Style, which(grepl("Specialty", data$Style)), "Other")
+data$Style = replace(data$Style, which(grepl("Garde", data$Style)), "Other")
+data$Style = replace(data$Style, which(grepl("Mead", data$Style)), "Other")
+data$Style = replace(data$Style, which(grepl("Malt", data$Style)), "Other")
+data$Style = replace(data$Style, which(grepl("Dunkelweizen", data$Style)), "Other")
+data$Style = factor(data$Style)
+data=na.omit(data)
+
+set.seed(123)
+
+#Cross Validate Using KNN
+trControl=trainControl(method="cv", number=5)
+fit.cv=train(Style ~ ., method="knn", tuneGrid=expand.grid(k=40:60), trControl=trControl, metric="Accuracy", data=data)
+fit.cv
+
+#Run KNN with optimal k value to get NIR and Confusion matrix
+index = sample(nrow(data)*.7)
+
+train = as.data.frame(na.omit(data[index,]))
+test = as.data.frame(na.omit(data[-index,]))
+
+fit=knn(train=train[,-1],test=test[,-1],cl=train[,1],k=46)
+print(confusionMatrix(as.factor(fit), test[,1]))
+
+```
+
+
+
+
+
+
