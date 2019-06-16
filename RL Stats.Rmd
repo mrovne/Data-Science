@@ -1,0 +1,70 @@
+---
+title: "RL Stats"
+author: "Marc Rovner"
+date: "August 21, 2018"
+output: html_document
+---
+Multi linear regression
+
+``` {r, include=F}
+library(tidyverse)
+library(glmnet)
+library(e1071)
+library(caTools)
+game = read.csv("C:\\Users\\Marc\\Downloads\\RL games-25.csv", sep=";")
+game.team = read.csv("C:\\Users\\Marc\\Downloads\\RL games team-25.csv", sep=";")
+game=select(game,-team)
+head(game)
+```
+
+```{r general lasso and ridge}
+#find optimal lambda
+x=data.matrix(game)
+ridge.rl=cv.glmnet(x[,-c(1:3)],x[,3], alpha=1,nfolds=5)
+plot(ridge.rl)
+
+#run ridge with optimal lambda
+rl.l=ridge.rl$lambda[which.min(ridge.rl$cvm)]
+rl.best=glmnet(x[,-c(1:3)],x[,3],alpha=1,lambda=rl.l)
+ridge.pred=predict(rl.best,s=rl.l,newx=x[,-c(1:3)])
+
+MSE=mean((x[,3]-ridge.pred)^2)
+coef(rl.best)
+MSE
+```
+```{r SVM}
+head(game.svm)
+game.svm=select(game.team,-c(team,games,wins.percentage))
+game.svm$wins=as.factor(game.svm$wins)
+#corrplot::corrplot(cor(game.svm))
+
+split=sample.split(game.svm$wins,SplitRatio=0.65)
+svm.train=subset(game.svm,split==T)
+svm.test=subset(game.svm,split==F)
+
+game.svm1=svm(wins~.,data=svm.train, kernel="linear",cross=5)
+summary(game.svm1)
+
+svm.pred=predict(game.svm1,svm.test)
+table(svm.pred,svm.test$wins)
+
+# game.svm2=kernlab::ksvm(wins~.,data=svm.train, kernel="vanilladot",cross=5)
+# plot(game.svm2,data=train)
+```
+
+```{r no boost ridge}
+noboost=data.matrix(select(game,-contains("count")))
+ridge.rl=cv.glmnet(noboost[,-c(1:3)],noboost[,3], alpha=1,nfolds=5)
+plot(ridge.rl)
+
+#run ridge with optimal lambda
+rl.l=ridge.rl$lambda[which.min(ridge.rl$cvm)]
+rl.best=glmnet(noboost[,-c(1:3)],noboost[,3],alpha=1,lambda=rl.l)
+ridge.pred=predict(rl.best,s=rl.l,newx=noboost[,-c(1:3)])
+
+MSE=mean((noboost[,3]-ridge.pred)^2)
+coef(rl.best)
+MSE
+
+```
+
